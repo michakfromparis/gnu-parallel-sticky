@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Gnu-parallel-sticky : fork of GNU parallel to add support for job tagging / hosts tagging to allow jobs to stick to hosts if required">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Gnu-parallel-sticky</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/michaKFromParis/gnu-parallel">View on GitHub</a>
+
+          <h1 id="project_title">Gnu-parallel-sticky</h1>
+          <h2 id="project_tagline">fork of GNU parallel to add support for job tagging / hosts tagging to allow jobs to stick to hosts if required</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/michaKFromParis/gnu-parallel/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/michaKFromParis/gnu-parallel/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h2>
+<a name="gnu-parallel-sticky" class="anchor" href="#gnu-parallel-sticky"><span class="octicon octicon-link"></span></a>Gnu parallel sticky</h2>
+
+<p>This project is a fork of GNU parallel version 20141022 by O. Tange and fetched from git://git.savannah.gnu.org/parallel.git.
+GNU parallel is a great tool to distribute tasks on multicore machines / grids of hosts over the network. See the original website here: <a href="http://www.gnu.org/software/parallel/">http://www.gnu.org/software/parallel/</a> and its tutorial here: <a href="http://www.gnu.org/software/parallel/parallel_tutorial.html">http://www.gnu.org/software/parallel/parallel_tutorial.html</a></p>
+
+<p>When using the network distribution scheme, the tasks are distributed in a random way with no control over the destination host of a specific task as explained by the original author here: <a href="http://stackoverflow.com/questions/26645042/gnu-parallel-host-sticky-jobs/26647768#26647768">http://stackoverflow.com/questions/26645042/gnu-parallel-host-sticky-jobs/26647768#26647768</a></p>
+
+<p>This version of parallel should work transparently with your previous parallel usages but adds a simple grammar to tag jobs and hosts. Here is a little example that shows you the difference in the grammar by distributing 3 sleep commands to 3 different hosts to sleep for 5, 15 and 10 seconds remotely to simulate a time consuming task.</p>
+
+<h2>
+<a name="tutorial" class="anchor" href="#tutorial"><span class="octicon octicon-link"></span></a>Tutorial</h2>
+
+<h4>
+<a name="regular-parallel-grammar" class="anchor" href="#regular-parallel-grammar"><span class="octicon octicon-link"></span></a>Regular parallel grammar:</h4>
+
+<pre><code>parallel -j1 --tag \
+--sshlogin 16/hostname1 \
+--sshlogin 8/user@hostname2 \
+--sshlogin 8/hostname3 \
+"sleep" ::: 5 15 10
+</code></pre>
+
+<p>Here the jobs will be distributed completely randomly to the various hosts</p>
+
+<h4>
+<a name="sticky-parallel-grammar" class="anchor" href="#sticky-parallel-grammar"><span class="octicon octicon-link"></span></a>Sticky parallel grammar:</h4>
+
+<pre><code>parallel -j1 --tag \
+--sshlogin 16/iOS+Android/hostname1 \
+--sshlogin 4/iOS/user@hostname2 \
+--sshlogin 8/OSX/hostname3 \
+"sleep" :::5@iOS 15@Android 10@OSX
+</code></pre>
+
+<h3>
+<a name="description" class="anchor" href="#description"><span class="octicon octicon-link"></span></a>Description</h3>
+
+<p>You can tag any host with any number of arbitrary tags separated by the <strong>+</strong> sign
+You can then tag any job with a tag by adding the tag name to it using the <strong>@</strong> sign</p>
+
+<p>First, host tagging:</p>
+
+<ul>
+<li>hostname1 is tagged with the tags "iOS" and "Android"</li>
+<li>hostname2 is tagged with the tag "iOS"</li>
+<li>hostname3 is tagged with the tag "OSX"</li>
+</ul>
+
+<p>then job tagging:</p>
+
+<ul>
+<li>job "5" is tagged with the tag "iOS"</li>
+<li>job "15" is tagged with the tag "Android"</li>
+<li>job "10" is tagged with the tag "OSX"</li>
+</ul>
+
+<h3>
+<a name="outcome" class="anchor" href="#outcome"><span class="octicon octicon-link"></span></a>Outcome</h3>
+
+<p>job 5 will be sent to hostname1 or hostname2 as they both support jobs of type "iOS"
+job 15 will be sent to hostname1 as it is the only one supporting jobs of type "Android" or wait for job 5 to complete
+job 10 will be sent to hostname3</p>
+
+<h2>
+<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h2>
+
+<p>This code is a a fork by <a href="https://github.com/michaKFromParis" class="user-mention">@michaKFromParis</a> of GNU parallel version 20141022 by O. Tange and fetched from git://git.savannah.gnu.org/parallel.git. Any contributor is welcome and I will take pull requests as long as they make sense</p>
+
+<h2>
+<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h2>
+
+<p>Having trouble with GNU Parallel Sticky? Do not hesitate to contact me directly at <a href="mailto:github@michak.net">github@michak.net</a></p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Gnu-parallel-sticky maintained by <a href="https://github.com/michaKFromParis">michaKFromParis</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
