@@ -2296,7 +2296,7 @@ sub get_job_with_sshlogin {
     # my $job = $Global::JobQueue->unget($job);
     # return undef;
 # 
-    print "Sending ", $job->tag(), " to ", $sshlogin->string(), "\n";
+    # print "Sending ", $job->tag(), " to ", $sshlogin->string(), "\n";
     # print "Total Jobs: ", $Global::JobQueue->total_jobs, "\n";
     my $clean_command = $job->replaced();
     if($clean_command =~ /^\s*$/) {
@@ -2304,13 +2304,13 @@ sub get_job_with_sshlogin {
 
         foreach my $j (@jobsToPutBack)
         {
-            print "putting back job ", $j->tag(), "\n";
+            # print "putting back job ", $j->tag(), "\n";
             $Global::JobQueue->unget($j);
         }
         @jobsToPutBack = ();
 
         if(not $Global::JobQueue->empty()) {
-            print "not empty recursion";
+            # print "not empty recursion";
             return get_job_with_sshlogin($sshlogin);
         } else {
             return undef;
@@ -2333,7 +2333,7 @@ sub get_job_with_sshlogin {
             if(not $Global::JobQueue->empty()) {
 		# This can potentially recurse for all args
                 no warnings 'recursion';
-                print "retry recursion";
+                # print "retry recursion";
                 $nextjob = get_job_with_sshlogin($sshlogin);
             }
             # Push the command back on the queue
