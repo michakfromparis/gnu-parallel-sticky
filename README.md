@@ -1,6 +1,6 @@
 ## Gnu parallel sticky
 This project is a fork of GNU parallel version 20141022 by O. Tange and fetched from git://git.savannah.gnu.org/parallel.git.
-GNU parallel is a great tool to distribute tasks on multicore machines / grids of hosts over the network. See the original website here: http://www.gnu.org/software/parallel/ and its tutorial here: http://www.gnu.org/software/parallel/parallel_tutorial.html
+GNU parallel is a great tool to distribute tasks on multicore machines / grids of hosts over the network. See the original website <a href="http://www.gnu.org/software/parallel/">here</a>  and its original tutorial <a href="http://www.gnu.org/software/parallel/parallel_tutorial.html">here</a> 
 
 When using the network distribution scheme, the tasks are distributed in a random way with no control over the destination host of a specific task as explained by the original author here: http://stackoverflow.com/questions/26645042/gnu-parallel-host-sticky-jobs/26647768#26647768
 
@@ -10,7 +10,7 @@ This version of parallel should work transparently with your previous parallel u
 
 #### Regular parallel grammar:
 
-```
+```bash
 parallel -j1 --tag \
 --sshlogin 16/hostname1 \
 --sshlogin 8/user@hostname2 \
@@ -22,7 +22,7 @@ Here the jobs will be distributed completely randomly to the various hosts
 
 #### Sticky parallel grammar:
 
-```
+```bash
 parallel -j1 --tag \
 --sshlogin 16/iOS+Android/hostname1 \
 --sshlogin 4/iOS/user@hostname2 \
