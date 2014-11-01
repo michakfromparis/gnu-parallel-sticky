@@ -2233,9 +2233,8 @@ sub get_job_with_sshlogin {
 
     my $hostTags = $sshlogin->tags();
     my @jobsToPutBack = ();
-    if ($hostTags)
+    if (scalar @$hostTags)
     {
-        my @hostTags = $sshlogin->tags();
         my $str = sprintf '[%s]' x @$hostTags, @$hostTags;
         # print "Host: ", $sshlogin->{'string'}, " $str\n";
 
