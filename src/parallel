@@ -1763,7 +1763,12 @@ sub start_more_jobs {
 	$jobs_started_this_round = 0;
 	# This will start 1 job on each --sshlogin (if possible)
 	# thus distribute the jobs on the --sshlogins round robin
-	for my $sshlogin (values %Global::host) {
+
+    foreach my $sshlogin (
+    sort { $a->{order} cmp $b->{order} }
+    values %Global::host
+    ){
+	# for my $sshlogin (values %Global::host) {
 	    if($Global::JobQueue->empty() and not $opt::pipe) {
 		# No more jobs in the queue
 		last;
@@ -2224,19 +2229,89 @@ sub get_job_with_sshlogin {
     # Returns:
     #   next job object for $sshlogin if any available
     my $sshlogin = shift;
+    my $job = undef;
 
-    my $job = $Global::JobQueue->get();
-    if(not defined $job) {
-        # No more jobs
-	::debug("start", "No more jobs: JobQueue empty\n");
-        return undef;
+    my $hostTags = $sshlogin->tags();
+    my @jobsToPutBack = ();
+    if ($hostTags)
+    {
+        my @hostTags = $sshlogin->tags();
+        my $str = sprintf '[%s]' x @$hostTags, @$hostTags;
+        # print "Host: ", $sshlogin->{'string'}, " $str\n";
+
+        my $matched = 0;
+
+        while (not $matched)
+        {
+            $job = $Global::JobQueue->get();
+            if(not defined $job)
+            {
+                # print "reached the end of the list!\n";
+                if (@jobsToPutBack)
+                {
+                    foreach my $j (@jobsToPutBack)
+                    {
+                        # print "putting back job ", $j->tag(), "\n";
+                        $Global::JobQueue->unget($j);
+                    }
+                    @jobsToPutBack = ();
+                }
+                return undef;
+            }
+            # print "fetched ", $job->tag(), " !\n";
+            my $jobTag = $job->hostTag();
+            my @hostTags = $sshlogin->tags();
+            my $str = sprintf '[%s]' x @$hostTags, @$hostTags;
+            # print "job: ", $job->tag(), "@", $jobTag, "\thost: $str\n";
+            # print "matching $jobTag with $str\n";
+            if (grep {$_ eq $jobTag} @$hostTags)
+            {
+                $matched = 1;
+                # print("Matched job!\n");
+            # $matched = 1 if ($jobTag ~~ @hostTags);
+            }
+            else
+            {
+                # print "skipping job ", $job->tag(), "\n";
+                push @jobsToPutBack, $job;
+            }
+            # $Global::JobQueue->unget($job);
+        }
+        foreach my $j (@jobsToPutBack)
+        {
+            # print "putting back job ", $j->tag(), "\n";
+            $Global::JobQueue->unget($j);
+        }
+        @jobsToPutBack = ();
     }
-#    if(not $sshlogin->start_more()) { return undef; }
-
+    else
+    {
+        $job = $Global::JobQueue->get();
+        if(not defined $job) {
+            # No more jobs
+        ::debug("start", "No more jobs: JobQueue empty\n");
+            return undef;
+        }
+        #    if(not $sshlogin->start_more()) { return undef; }
+    }
+    # my $job = $Global::JobQueue->unget($job);
+    # return undef;
+# 
+    print "Sending ", $job->tag(), " to ", $sshlogin->string(), "\n";
+    # print "Total Jobs: ", $Global::JobQueue->total_jobs, "\n";
     my $clean_command = $job->replaced();
     if($clean_command =~ /^\s*$/) {
         # Do not run empty lines
+
+        foreach my $j (@jobsToPutBack)
+        {
+            print "putting back job ", $j->tag(), "\n";
+            $Global::JobQueue->unget($j);
+        }
+        @jobsToPutBack = ();
+
         if(not $Global::JobQueue->empty()) {
+            print "not empty recursion";
             return get_job_with_sshlogin($sshlogin);
         } else {
             return undef;
@@ -2259,6 +2334,7 @@ sub get_job_with_sshlogin {
             if(not $Global::JobQueue->empty()) {
 		# This can potentially recurse for all args
                 no warnings 'recursion';
+                print "retry recursion";
                 $nextjob = get_job_with_sshlogin($sshlogin);
             }
             # Push the command back on the queue
@@ -2266,6 +2342,7 @@ sub get_job_with_sshlogin {
             return $nextjob;
         }
     }
+    # print "returning job ", $job->tag(), " !\n";
     return $job;
 }
 
@@ -2341,6 +2418,7 @@ sub parse_sshlogin {
         }
     }
     $Global::minimal_command_line_length = 8_000_000;
+    my $sshLoginOrder = 0;
     for my $sshlogin_string (::uniq(@login)) {
 	if($Global::host{$sshlogin_string}) {
 	    # This sshlogin has already been added:
@@ -2360,6 +2438,8 @@ sub parse_sshlogin {
 	$Global::minimal_command_line_length =
 	    ::min($Global::minimal_command_line_length, $sshlogin->maxlength());
         $Global::host{$sshlogin->string()} = $sshlogin;
+        $Global::host{$sshlogin->string()}->{'order'} = $sshLoginOrder;
+        $sshLoginOrder++;
     }
     # debug("start", "sshlogin: ", my_dump(%Global::host),"\n");
     if($opt::transfer or @opt::return or $opt::cleanup or @opt::basefile) {
@@ -2653,9 +2733,9 @@ sub save_original_signal_handler {
     # Returns: N/A
     $SIG{TERM} ||= sub { exit 0; }; # $SIG{TERM} is not set on Mac OS X
     $SIG{INT} = sub { if($opt::tmux) { qx { tmux kill-session -t p$$ }; }
-		      unlink keys %Global::unlink; exit -1  };
+		      unlink keys %Global::unlink; exit(-1)  };
     $SIG{TERM} = sub { if($opt::tmux) { qx { tmux kill-session -t p$$ }; }
-		      unlink keys %Global::unlink; exit -1  };
+		      unlink keys %Global::unlink; exit(-1)  };
     %Global::original_sig = %SIG;
     $SIG{TERM} = sub {}; # Dummy until jobs really start
 }
@@ -3382,7 +3462,14 @@ sub new {
     my $class = shift;
     my $sshlogin_string = shift;
     my $ncpus;
-    if($sshlogin_string =~ s:^(\d+)/:: and defined $1) {
+    my @tags = ();
+    if($sshlogin_string =~ s:^(\d+)/(.*)/:: and defined $2) {
+        # Look for optional SSHLogin Tags
+        $ncpus = $1;
+        @tags = split(/\+/, $2);
+        # print "host tags: $sshlogin_string - @tags\n";
+    }
+    if ($sshlogin_string =~ s:^(\d+)/:: and defined $1) {
         # Override default autodetected ncpus unless missing
         $ncpus = $1;
     }
@@ -3398,6 +3485,7 @@ sub new {
         'max_jobs_running' => undef,
         'orig_max_jobs_running' => undef,
         'ncpus' => $ncpus,
+        'tags' => [ @tags ],
         'sshcommand' => undef,
         'serverlogin' => undef,
         'control_path_dir' => undef,
@@ -3455,6 +3543,11 @@ sub maxlength {
 sub jobs_completed {
     my $self = shift;
     return $self->{'jobs_completed'};
+}
+
+sub tags {
+    my $self = shift;
+    return $self->{'tags'};
 }
 
 sub inc_jobs_completed {
@@ -6102,10 +6195,19 @@ sub print_joblog {
 sub tag {
     my $self = shift;
     if(not defined $self->{'tag'}) {
-	$self->{'tag'} = $self->{'commandline'}->
-	    replace_placeholders([$opt::tagstring],0,0)."\t";
+    $self->{'tag'} = $self->{'commandline'}->
+        replace_placeholders([$opt::tagstring],0,0)."\t";
     }
     return $self->{'tag'};
+}
+
+sub hostTag {
+    my $self = shift;
+    if(not defined $self->{'hostTag'}) {
+    $self->{'hostTag'} = $self->{'commandline'}->{'arg_list'}[0][0]->{'tag'};
+    # $self->{'hostTag'} = $self->{'commandline'}->{'arg_list'}->{'tag'}
+    }
+    return $self->{'hostTag'};
 }
 
 sub exitstatus {
@@ -6875,39 +6977,39 @@ sub new {
 sub get {
     my $self = shift;
     if(@{$self->{'unget'}}) {
-	my $cmd_line = shift @{$self->{'unget'}};
-	return ($cmd_line);
+    my $cmd_line = shift @{$self->{'unget'}};
+    return ($cmd_line);
     } else {
-	my $cmd_line;
-	$cmd_line = CommandLine->new($self->seq(),
-				     $self->{'command'},
-				     $self->{'arg_queue'},
-				     $self->{'context_replace'},
-				     $self->{'max_number_of_args'},
-				     $self->{'return_files'},
-				     $self->{'replacecount'},
-				     $self->{'len'},
-	    );
-	$cmd_line->populate();
-	::debug("init","cmd_line->number_of_args ",
-		$cmd_line->number_of_args(), "\n");
-	if($opt::pipe or $opt::pipepart) {
-	    if($cmd_line->replaced() eq "") {
-		# Empty command - pipe requires a command
-		::error("--pipe must have a command to pipe into (e.g. 'cat').\n");
-		::wait_and_exit(255);
-	    }
-	} else {
-	    if($cmd_line->number_of_args() == 0) {
-		# We did not get more args - maybe at EOF string?
-		return undef;
-	    } elsif($cmd_line->replaced() eq "") {
-		# Empty command - get the next instead
-		return $self->get();
-	    }
-	}
-	$self->set_seq($self->seq()+1);
-	return $cmd_line;
+    my $cmd_line;
+    $cmd_line = CommandLine->new($self->seq(),
+                     $self->{'command'},
+                     $self->{'arg_queue'},
+                     $self->{'context_replace'},
+                     $self->{'max_number_of_args'},
+                     $self->{'return_files'},
+                     $self->{'replacecount'},
+                     $self->{'len'},
+        );
+    $cmd_line->populate();
+    ::debug("init","cmd_line->number_of_args ",
+        $cmd_line->number_of_args(), "\n");
+    if($opt::pipe or $opt::pipepart) {
+        if($cmd_line->replaced() eq "") {
+        # Empty command - pipe requires a command
+        ::error("--pipe must have a command to pipe into (e.g. 'cat').\n");
+        ::wait_and_exit(255);
+        }
+    } else {
+        if($cmd_line->number_of_args() == 0) {
+        # We did not get more args - maybe at EOF string?
+        return undef;
+        } elsif($cmd_line->replaced() eq "") {
+        # Empty command - get the next instead
+        return $self->get();
+        }
+    }
+    $self->set_seq($self->seq()+1);
+    return $cmd_line;
     }
 }
 
@@ -7397,8 +7499,15 @@ package Arg;
 sub new {
     my $class = shift;
     my $orig = shift;
+    my $tag;
+    if($orig =~ s:@(.*):: and defined $1) {
+        # We found a tag on the arg
+        $tag = $1;
+        ::debug "arg tag: $tag\n";
+        }
     return bless {
-	'orig' => $orig,
+    'orig' => $orig,
+    'tag' => $tag,
     }, ref($class) || $class;
 }
 
@@ -7448,6 +7557,11 @@ sub replace {
 sub orig {
     my $self = shift;
     return $self->{'orig'};
+}
+
+sub tag {
+    my $self = shift;
+    return $self->{'tag'};
 }
 
 sub trim_of {
